@@ -2,30 +2,30 @@ local graph = require "./graph"
 
 type Node<T> = graph.Node<T>
 
-type function Parameters(fn)
-    if not fn:is("function") then return types.never end
+-- type function Parameters(fn)
+--     if not fn:is("function") then return types.never end
 
-    local paramsType
-    local parameters = fn:parameters()
+--     local paramsType
+--     local parameters = fn:parameters()
 
-	if parameters.head then
-		for _, value in parameters.head do
-			paramsType = if paramsType then types.unionof(paramsType, value) else value
-		end
-	end
+-- 	if parameters.head then
+-- 		for _, value in parameters.head do
+-- 			paramsType = if paramsType then types.unionof(paramsType, value) else value
+-- 		end
+-- 	end
 
-	if parameters.tail then
-		paramsType = if paramsType then types.unionof(paramsType, parameters.tail) else parameters.tail
-	end
+-- 	if parameters.tail then
+-- 		paramsType = if paramsType then types.unionof(paramsType, parameters.tail) else parameters.tail
+-- 	end
 
-	return paramsType or types.singleton(nil)
-end
+-- 	return paramsType or types.singleton(nil)
+-- end
 
-type function IndexOfUnion(u, i)
-    if not u:is("union") or not i:is("singleton") then return types.never end
+-- type function IndexOfUnion(u, i)
+--     if not u:is("union") or not i:is("singleton") then return types.never end
 
-    return u:components()[tonumber(i:value())]
-end
+--     return u:components()[tonumber(i:value())]
+-- end
 
 local createNode = graph.createNode
 local assertStableScope = graph.assertStableScope
@@ -110,7 +110,7 @@ end
 
 return {
     property = function(instance, property, source)
-        local node = createNode<<IndexOfUnion<Parameters<typeof(updatePropertyEffect)>, "1">>>(assertStableScope(), updatePropertyEffect, {
+        local node = createNode(assertStableScope(), updatePropertyEffect, {
             instance = instance,
             property = property,
             source = source
@@ -133,7 +133,7 @@ return {
     end,
 
     children = function(instance, children)
-        local node = createNode<<IndexOfUnion<Parameters<typeof(updateChildrenEffect)>, "1">>>(assertStableScope(), updateChildrenEffect, {
+    local node = createNode(assertStableScope(), updateChildrenEffect :: any, {
             instance = instance,
             currentChildrenSet = {},
             newChildrenSet = {},

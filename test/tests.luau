@@ -817,15 +817,14 @@ TEST("create()", wrap_root(function()
         CHECK(frame:FindFirstChild "G")
     end
 
+    -- what is the purpose of this?
     do CASE "set false as child"
         create "Frame" {
             false
         }
-
         create "Frame" {
             function() return false end
         }
-
         create "Frame" {
             function() return { false } end
         }
