@@ -8,7 +8,7 @@ type Map<K, V> = { [K]: V }
 type Source<T> = () -> T
 type Component<T> = (Source<boolean>) -> (T, ...number)
 
-local function switch_map<K, Obj>(
+local function switchMap<K, Obj>(
     input: Source<K>,
     map: Map<K, Component<Obj>>
 ): Source<nil | Obj | Array<Obj>>
@@ -16,12 +16,12 @@ local function switch_map<K, Obj>(
         destroy: () -> (),
         object: Obj,
         delay: number,
-        present: (boolean?) -> boolean,
+        present: (() -> boolean) & ((boolean) -> boolean),
         timeout: { cancel: boolean }?
     }>
 
     local output = source(nil :: nil | Obj | Array<Obj>)
-    local function update_output()
+    local function updateOutput()
         local objects = {}
 
         for _, scope in scopes do
@@ -52,7 +52,7 @@ local function switch_map<K, Obj>(
                     scope.timeout = timeout(scope.delay, function()
                         scope.destroy()
                         scopes[k] = nil
-                        update_output()
+                        updateOutput()
                     end)
                 end
             end
@@ -99,7 +99,7 @@ local function switch_map<K, Obj>(
             end
         end
 
-        update_output()
+        updateOutput()
     end)
 
     return output
@@ -107,7 +107,7 @@ end
 
 local function switch<K, Obj>(input: Source<K>): (map: Map<K, Component<Obj>>) -> Source<nil | Obj | Array<Obj>>
     return function(map)
-        return switch_map(input, map)
+        return switchMap(input, map)
     end
 end
 

@@ -1,12 +1,12 @@
-local function inline_test(): string
+local function inlineTest(): string
     return debug.info(1, "n")
 end
 
-local is_O2 = inline_test() ~= "inline_test"
+local isO2 = inlineTest() ~= "inlineTest"
 
 return {
-    strict = not is_O2,
+    strict = not isO2,
     defaults = true,
-    defer_nested_properties = true,
+    deferNestedProperties = true,
     batch = false,
 }

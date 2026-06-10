@@ -1,13 +1,13 @@
 local typeof = game and typeof or require "../test/mock".typeof :: never
 
 local flags = require "./flags"
-local implicit_effect = require "./implicit_effect"
-local _, is_action = require "./action"()
+local implicitEffect = require "./implicitEffect"
+local _, isAction = require "./action"()
 local graph = require "./graph"
 type Node<T> = graph.Node<T>
 
 type Array<V> = { V }
-type ArrayOrV<V> = {ArrayOrV<V>} | V
+type ArrayOrV<V> = { V } | V
 type Map<K, V> = { [K]: V }
 
 type Cache = {
@@ -18,31 +18,33 @@ type Cache = {
     >,
 
     -- actions to run after events are connected
-    actions: Map<
+    actions: setmetatable<Map<
         number, -- priority
         Array<(Instance) -> ()> -- action callbacks
-    >,
+    >, { __index: (any, i: number) -> Array<(Instance) -> ()> }>,
 
     -- what to parent the instance to after running actions
     parent: unknown,
 
     -- cache to detect duplicate property setting at same nesting depth
-    nested_debug: Map<
+    nestedDebug: setmetatable<Map<
         number, -- depth
         Map<string, true> -- set of property names
-    >,
+    >, {
+        __index: (any, i: number) -> Map<string, true>
+    }>,
 
     -- each nested layer occupies two indexes: 1. table ref 2. nested depth
     -- e.g. { t1 = { t3 = {} }, t2 = {} } -> { t1, 1, t2, 1, t3, 2 }
-    nested_stack: { {} | number }
+    nestedStack: { {} | number }
 }
 
-local free_cache: Cache?
+local freeCache: Cache?
 
-local function borrow_cache(): Cache
-    if free_cache then
-        local cache = free_cache
-        free_cache = nil
+local function borrowCache(): Cache
+    if freeCache then
+        local cache = freeCache
+        freeCache = nil
         return cache
     else
         return {
@@ -51,26 +53,26 @@ local function borrow_cache(): Cache
                 __index = function(self, i) self[i] = {}; return self[i] end
             }),
             parent = nil,
-            nested_debug = setmetatable({} :: any, {
+            nestedDebug = setmetatable({} :: any, {
                 __index = function(self, i: number) self[i] = {}; return self[i] end
             }),
-            nested_stack = {}
+            nestedStack = {}
         }
     end
 end
 
-local function return_cache(cache: Cache )
-    free_cache = cache
+local function returnCache(cache: Cache )
+    freeCache = cache
 end
 
-local function process_properties(properties: Map<unknown, unknown>, instance: Instance, cache: Cache, depth: number)
+local function processProperties(properties: Map<unknown, unknown>, instance: Instance, cache: Cache, depth: number)
     for property, value in properties do
         if type(property) == "string" then
             if flags.strict then -- check for duplicate property assignment at nesting depth
-                if cache.nested_debug[depth][property] then
+                if cache.nestedDebug[depth][property] then
                     error(`duplicate property {property} at depth {depth}`, 0)
                 end
-                cache.nested_debug[depth][property] = true
+                cache.nestedDebug[depth][property] = true
             end
 
             if property == "Parent" then
@@ -83,22 +85,22 @@ local function process_properties(properties: Map<unknown, unknown>, instance: I
                     table.insert(cache.events, property) -- add event name to buffer
                     table.insert(cache.events, value :: () -> ()) -- add event listener to buffer
                 else
-                    implicit_effect.property(instance, property, value :: () -> ()) -- create implicit effect for property
+                    implicitEffect.property(instance, property, value :: () -> unknown) -- create implicit effect for property
                 end
             else
                 (instance :: any)[property] = value -- set property
             end    
         elseif type(property) == "number" then
             if type(value) == "function" then
-                implicit_effect.children(instance, value :: () -> ArrayOrV<Instance>) -- bind children
+                implicitEffect.children(instance, value :: () -> ArrayOrV<Instance>) -- bind children
             elseif type(value) == "table" then
-                if is_action(value) then
-                    table.insert(cache.actions[(value :: any).priority], (value :: any).callback :: () -> ()) -- add action to buffer
-                elseif flags.defer_nested_properties then
-                    table.insert(cache.nested_stack, value :: {})
-                    table.insert(cache.nested_stack, depth + 1) -- push table to stack for later processing
+                if isAction(value) then
+                    table.insert(cache.actions[(value :: any).priority], (value :: any).callback :: (Instance) -> ()) -- add action to buffer
+                elseif flags.deferNestedProperties then
+                    table.insert(cache.nestedStack, value :: {})
+                    table.insert(cache.nestedStack, depth + 1) -- push table to stack for later processing
                 else
-                    process_properties(value :: Map<unknown, unknown>, instance, cache, depth + 1)
+                    processProperties(value :: Map<unknown, unknown>, instance, cache, depth + 1)
                 end
             elseif type(value) == "userdata" then
                 (value :: Instance).Parent = instance -- parent child
@@ -113,24 +115,24 @@ local function apply<T>(instance: T & Instance, properties: { [unknown]: unknown
         error "attempt to call a constructor returned by create() with no properties"
     end
 
-    local caches = borrow_cache()
+    local caches = borrowCache()
     local events = caches.events
     local actions = caches.actions
-    local nested_debug = caches.nested_debug
-    local nested_stack = caches.nested_stack
+    local nestedDebug = caches.nestedDebug
+    local nestedStack = caches.nestedStack
 
     -- process all properties
     local depth = 1
     repeat
-        process_properties(properties, instance, caches, depth)
-        depth = table.remove(nested_stack) :: number
-        properties = table.remove(nested_stack) :: {}
+        processProperties(properties, instance, caches, depth)
+        depth = table.remove(nestedStack) :: number
+        properties = table.remove(nestedStack) :: { [unknown]: unknown }
     until not properties
 
     for i = 1, #events, 2 do
-        local event_name = events[i]
-        local event_listener = events[i + 1]
-        ;(instance :: any)[event_name]:Connect(event_listener)
+        local eventName = events[i]
+        local eventListener = events[i + 1]
+        ;(instance :: any)[eventName]:Connect(eventListener)
     end
 
     for _, queued in actions do
@@ -142,7 +144,7 @@ local function apply<T>(instance: T & Instance, properties: { [unknown]: unknown
     local parent = caches.parent
     if parent then
         if type(parent) == "function" then
-            implicit_effect.parent(instance, parent :: () -> Instance)
+            implicitEffect.parent(instance, parent :: () -> Instance)
         else
             instance.Parent = parent :: Instance
         end
@@ -151,10 +153,10 @@ local function apply<T>(instance: T & Instance, properties: { [unknown]: unknown
     table.clear(events)
     for _, queued in actions do table.clear(queued) end
     caches.parent = nil
-    if flags.strict then table.clear(nested_debug) end
-    table.clear(nested_stack)
+    if flags.strict then table.clear(nestedDebug) end
+    table.clear(nestedStack)
 
-    return_cache(caches)
+    returnCache(caches)
 
     return instance
 end

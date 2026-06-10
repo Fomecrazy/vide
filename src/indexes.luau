@@ -1,4 +1,3 @@
-local flags = require "./flags"
 local branch = require "./branch"
 local source = require "./source"
 local effect = require "./effect"
@@ -12,20 +11,20 @@ local function indexes<K, V, Obj>(
     input: Source<Map<K, V>>,
     component: (Source<V>, K, Source<boolean>) -> (Obj, ...number)
 ): Source<Array<Obj>>
-    local update_count = 0
+    local updateCount = 0
     local scopes = {} :: Map<K, {
         destroy: () -> (),
         object: Obj,
         value: V?,
-        value_source: (V?) -> V,
+        valueSource: (V?) -> V,
         count: number,
         delay: number,
-        present: (boolean?) -> boolean,
+        present: (() -> boolean) & (boolean) -> boolean,
         timeout: { cancel: boolean }?,
     }>
 
     local output = source({} :: Array<Obj>)
-    local function update_output()
+    local function updateOutput()
         local objects = table.create(4)
 
         for _, scope in scopes do
@@ -38,35 +37,35 @@ local function indexes<K, V, Obj>(
     effect(function()
         local data = input()
 
-        local count = update_count
-        update_count += 1
+        local count = updateCount
+        updateCount += 1
 
-        local children_need_update = false -- set to true if a scope is created or destroyed
+        local doChildrenNeedUpdate = false -- set to true if a scope is created or destroyed
 
         -- create or update scopes
         for i, v in data do
             local scope = scopes[i]
 
             if scope == nil then -- create new scope and create component
-                local value_source = source(v)
+                local valueSource = source(v)
                 local present = source(false)
 
                 local delay = nil :: number?
                 local destroy, object = branch(function()
-                    local object, t = component(value_source, i, present)
+                    local object, t = component(valueSource, i, present)
                     delay = t
                     return object
                 end)
 
                 present(true)
                 
-                children_need_update = true
+                doChildrenNeedUpdate = true
 
                 scopes[i] = {
                     destroy = destroy,
                     object = object,
                     value = v,
-                    value_source = value_source,
+                    valueSource = valueSource :: V,
                     count = count,
                     delay = delay or 0,
                     present = present,
@@ -83,7 +82,7 @@ local function indexes<K, V, Obj>(
                     end
                     
                     scope.value = v
-                    scope.value_source(v)
+                    scope.valueSource(v)
                 end
             end
         end
@@ -96,22 +95,22 @@ local function indexes<K, V, Obj>(
                 if scope.delay == 0 then
                     scope.destroy()
                     scopes[i] = nil
-                    children_need_update = true
+                    doChildrenNeedUpdate = true
                 else
                     scope.value = nil -- set to nil for the `scope.value ~= v` check
                     if scope.timeout == nil then
                         scope.timeout = timeout(scope.delay, function() -- todo: possible redundant updates
                             scope.destroy()
                             scopes[i] = nil
-                            update_output()
+                            updateOutput()
                         end)
                     end
                 end
             end
         end
 
-        if children_need_update then
-            update_output()
+        if doChildrenNeedUpdate then
+            updateOutput()
         end
     end)
 

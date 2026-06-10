@@ -17,11 +17,11 @@ local switch = require "./switch"
 local show = require "./show"
 local indexes = require "./indexes"
 local values = require "./values"
-local spring, update_springs = require "./spring"()
+local spring, updateSprings = require "./spring"()
 local action = require "./action"()
 local changed = require "./changed"
-local timeout, update_timeouts = require "./timeout"()
-local flags = require "./flags"
+local timeout, updateTimeouts = require "./timeout"()
+local flags = require "./flags" :: { [any]: any }
 
 export type Source<T> = source.Source<T>
 export type source<T> = Source<T>
@@ -30,19 +30,21 @@ export type context<T> = Context<T>
 
 local function step(dt: number)
     if game then debug.profilebegin("VIDE STEP") end
-
     if game then debug.profilebegin("VIDE SPRING") end
-    update_springs(dt)
-    if game then debug.profileend() end
 
+    updateSprings(dt)
+
+    if game then debug.profileend() end
+    
     if game then debug.profilebegin("VIDE SCHEDULER") end
-    update_timeouts(dt)
+    
+    updateTimeouts(dt)
+    
     if game then debug.profileend() end
-
     if game then debug.profileend() end
 end
 
-local stepped = game and game:GetService("RunService").Heartbeat:Connect(function(dt: number)
+local stepped: RBXScriptConnection? = game and game:GetService("RunService").Heartbeat:Connect(function(dt: number)
     task.defer(step, dt)
 end)
 
@@ -79,7 +81,7 @@ local vide = {
     -- flags
     strict = (nil :: any) :: boolean,
     defaults = (nil :: any) :: boolean,
-    defer_nested_properties = (nil :: any) :: boolean,
+    deferNestedProperties = (nil :: any) :: boolean,
 
     -- temporary
     apply = function(instance: Instance)
@@ -99,6 +101,7 @@ local vide = {
     end
 }
 
+-- make strict
 setmetatable(vide :: any, {
     __index = function(_, index: unknown): ()
         if flags[index] == nil then

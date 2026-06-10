@@ -8,7 +8,7 @@ local function timeout(t: number, fn: () -> ())
     return handle
 end
 
-local function update_timeouts(dt: number)
+local function updateTimeouts(dt: number)
     for i = #queue, 1, -1 do
         local handle = queue[i]
         handle.t -= dt
@@ -24,4 +24,4 @@ local function update_timeouts(dt: number)
     end
 end
 
-return function() return timeout, update_timeouts end
+return function() return timeout, updateTimeouts end

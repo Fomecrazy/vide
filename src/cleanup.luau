@@ -1,10 +1,17 @@
+type Destroyable = {
+    destroy: (any) -> ();
+    disconnect: (any) -> ();
+    Destroy: (any) -> ();
+    Disconnect: (any) -> ();
+}
+
 local typeof = game and typeof or require "../test/mock".typeof :: never
 
 local graph = require "./graph"
-local get_scope = graph.get_scope
-local push_cleanup = graph.push_cleanup
+local getScope = graph.getScope
+local pushCleanup = graph.pushCleanup
 
-local function helper(obj: any)
+local function helper(obj: Destroyable)
     return
         if typeof(obj) == "RBXScriptConnection" then function() obj:Disconnect() end
         elseif type(obj) == "thread" then function() task.cancel(obj) end
@@ -17,20 +24,19 @@ local function helper(obj: any)
 end
 
 local function cleanup(value: unknown)
-    local scope = get_scope()
+    local scope = getScope()
 
     if not scope then
         error "cannot cleanup outside a stable or reactive scope"
     end; assert(scope)
 
     if type(value) == "function" then
-        push_cleanup(scope, value :: () -> ())
+        pushCleanup(scope, value :: () -> ())
     else
-        push_cleanup(scope, helper(value))
+        pushCleanup(scope, helper(value :: Destroyable))
     end
 end
 
-type Destroyable = { destroy: (any) -> () } | { Destroy: (any) -> () }
 type Disconnectable = { disconnect: (any) -> () } | { Disconnect: (any) -> () }
 
 return cleanup ::

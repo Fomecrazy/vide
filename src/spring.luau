@@ -1,12 +1,12 @@
 local graph = require "./graph"
 type Node<T> = graph.Node<T>
 type SourceNode<T> = graph.SourceNode<T>
-local create_node = graph.create_node
-local create_source_node = graph.create_source_node
-local assert_stable_scope = graph.assert_stable_scope
-local evaluate_node = graph.evaluate_node
-local update_descendants = graph.update_descendants
-local push_scope_as_child_of = graph.push_scope_as_child_of
+local createNode = graph.createNode
+local createSourceNode = graph.createSourceNode
+local assertStableScope = graph.assertStableScope
+local evaluateNode = graph.evaluateNode
+local updateDescendants = graph.updateDescendants
+local pushScopeAsChildOf = graph.pushScopeAsChildOf
 
 local UPDATE_RATE = 120
 local TOLERANCE_FACTOR = 10_000
@@ -30,7 +30,7 @@ type SpringState<T> = {
     x1_123: vector, x1_456: vector, -- target position
     v_123: vector, v_456: vector, -- current velocity
 
-    source_value: T -- current value of spring input source
+    sourceValue: T -- current value of spring input source
 }
 
 type SpringSettings<T> = ({
@@ -42,7 +42,7 @@ type SpringSettings<T> = ({
 type TypeToVec6<T> = (T) -> (vector, vector)
 type Vec6ToType<T> = (vector, vector) -> T
 
-local type_to_vec6 = {
+local typeToVec6 = {
     number = function(v)
         return vector.create(v, 0, 0), vector.zero
     end :: TypeToVec6<number>,
@@ -81,7 +81,7 @@ local type_to_vec6 = {
     end :: TypeToVec6<{ number }>
 }
 
-local vec6_to_type = {
+local vec6ToType = {
     number = function(a, b)
         return a.X
     end :: Vec6ToType<number>,
@@ -119,28 +119,28 @@ local vec6_to_type = {
     end :: Vec6ToType<{ number }>
 }
 
-local invalid_type = {
+local invalidType = {
     __index = function(_, t: string)
         error(`cannot spring type {t}`, 0)
     end
 }
 
-setmetatable(type_to_vec6, invalid_type)
-setmetatable(vec6_to_type, invalid_type)
+setmetatable(typeToVec6, invalidType)
+setmetatable(vec6ToType, invalidType)
 
 -- maps spring data to its corresponding output node
 -- lifetime of spring data is tied to output node
 local springs: { [SpringState<unknown>]: SourceNode<unknown> } = {}
 setmetatable(springs :: any, { __mode = "v" })
 
-local function spring<T>(source: () -> T, period: number?, damping_ratio: number?): (() -> T, SpringSettings<T>)
-    local owner = assert_stable_scope()
+local function spring<T>(source: () -> T, period: number?, dampingRatio: number?): (() -> T, SpringSettings<T>)
+    local owner = assertStableScope()
 
     -- https://en.wikipedia.org/wiki/Damping
-    local w_n = 2*math.pi / (period or 1)
-    local z = damping_ratio or 1
-    local k = w_n^2
-    local c_c = 2*w_n
+    local w_n = 2 * math.pi / (period or 1)
+    local z = dampingRatio or 1
+    local k = w_n ^ 2
+    local c_c = 2 * w_n
     local c = z * c_c
 
     -- todo: is there a solution other than reducing step size?
@@ -163,27 +163,27 @@ local function spring<T>(source: () -> T, period: number?, damping_ratio: number
         x1_456 = vector.zero,
         v_456 = vector.zero,
 
-        source_value = false :: any,
+        sourceValue = false :: any,
     }
     
-    local output = create_source_node(false :: any)
+    local output = createSourceNode(false :: any)
 
-    local function updater_effect()
+    local function updaterEffect()
         local value = source()
-        data.x1_123, data.x1_456 = type_to_vec6[typeof(value)](value)
-        data.source_value = value
+        data.x1_123, data.x1_456 = typeToVec6[typeof(value)](value)
+        data.sourceValue = value
         springs[data] = output
         return value
     end
 
-    local updater = create_node(owner, updater_effect, false :: any)
-    evaluate_node(updater)
+    local updater = createNode(owner, updaterEffect, false :: any)
+    evaluateNode(updater)
 
     -- set initial position to goal
     data.x_123, data.x_456 = data.x1_123, data.x1_456
 
     -- set output to goal
-    output.cache = data.source_value
+    output.cache = data.sourceValue
 
     local config = function(p)
         local x = p.position
@@ -191,17 +191,17 @@ local function spring<T>(source: () -> T, period: number?, damping_ratio: number
         local dv = p.impulse
 
         if x then
-            local x_123, x_456 = type_to_vec6[typeof(x)](x)
+            local x_123, x_456 = typeToVec6[typeof(x)](x)
             data.x_123, data.x_456 = x_123, x_456
             data.x0_123, data.x0_456 = x_123, x_456
         end
 
         if v then
-            data.v_123, data.v_456 = type_to_vec6[typeof(v)](v)
+            data.v_123, data.v_456 = typeToVec6[typeof(v)](v)
         end
 
         if dv then
-            local dv_123, dv_456 = type_to_vec6[typeof(dv)](dv)
+            local dv_123, dv_456 = typeToVec6[typeof(dv)](dv)
             data.v_123 += dv_123
             data.v_456 += dv_456
         end
@@ -212,13 +212,13 @@ local function spring<T>(source: () -> T, period: number?, damping_ratio: number
 
     return function(...)
         if select("#", ...) == 0 then -- no args were given
-            push_scope_as_child_of(output)
+            pushScopeAsChildOf(output)
             return output.cache
         end
 
         -- set current position to value
         local v = ... :: T
-        data.x_123, data.x_456 = type_to_vec6[typeof(v)](v)
+        data.x_123, data.x_456 = typeToVec6[typeof(v)](v)
 
         -- reset velocity
         data.v_123 = vector.zero
@@ -235,18 +235,18 @@ local function spring<T>(source: () -> T, period: number?, damping_ratio: number
 end
 
 -- calculates a float tolerance, based on the magnitude of the float
-local function get_min_step(x: number): number
+local function getMinStep(x: number): number
     return x/TOLERANCE_FACTOR
 end
-local function get_min_vector_step(direction: vector): vector
+local function getMinVectorStep(direction: vector): vector
     return vector.create(
-        get_min_step(direction.x),
-        get_min_step(direction.y),
-        get_min_step(direction.z)
+        getMinStep(direction.x),
+        getMinStep(direction.y),
+        getMinStep(direction.z)
     )
 end
 
-local function step_springs(dt: number)
+local function stepSprings(dt: number)
     for s in springs do
         local k = s.k
         local c = s.c
@@ -283,15 +283,15 @@ local function step_springs(dt: number)
     end
 end
 
-local function update_spring_sources()
+local function updateSpringSources()
     for data, output in springs do
         local x0_123, x0_456 = data.x0_123, data.x0_456
         local x_123, x_456 = data.x_123, data.x_456
         local x1_123, x1_456 = data.x1_123, data.x1_456
         local v_123, v_456 = data.v_123, data.v_456
 
-        local tol_123 = vector.abs(get_min_vector_step(x0_123 - x1_123))
-        local tol_456 = vector.abs(get_min_vector_step(x0_456 - x1_456))
+        local tol_123 = vector.abs(getMinVectorStep(x0_123 - x1_123))
+        local tol_456 = vector.abs(getMinVectorStep(x0_456 - x1_456))
 
         if
             -- position is at goal (within tolerance)
@@ -303,26 +303,26 @@ local function update_spring_sources()
             and vector.max(vector.abs(v_456/10), tol_456) == tol_456
         then
             springs[data] = nil
-            output.cache = data.source_value
+            output.cache = data.sourceValue
         else
-            output.cache = vec6_to_type[typeof(data.source_value)](x_123, x_456)
+            output.cache = vec6ToType[typeof(data.sourceValue)](x_123, x_456)
         end
 
-        update_descendants(output)
+        updateDescendants(output)
     end
 end
 
 return function()
-    local time_elapsed = 0
+    local timeElapsed = 0
 
     return spring, function(dt: number)
-        time_elapsed += dt
+        timeElapsed += dt
 
-        while time_elapsed > 1 / UPDATE_RATE do
-            time_elapsed -= 1 / UPDATE_RATE
-            step_springs(1 / UPDATE_RATE)
+        while timeElapsed > 1 / UPDATE_RATE do
+            timeElapsed -= 1 / UPDATE_RATE
+            stepSprings(1 / UPDATE_RATE)
         end
 
-        update_spring_sources()
+        updateSpringSources()
     end
 end

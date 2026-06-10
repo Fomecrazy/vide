@@ -5,7 +5,7 @@ local defaults = require "./defaults"
 local apply = require "./apply"
 local flags = require "./flags"
 
-local function create_constructor_for_class(class: string): ({ [unknown]: unknown }) -> Instance
+local function createConstructorForClass(class: string): ({ [unknown]: unknown }) -> Instance
     local function constructor(properties: { [unknown]: unknown }): Instance
         local ok, instance: Instance = pcall(Instance.new, class :: any)
         if not ok then error(`invalid class name {class}`, 0) end
@@ -25,24 +25,24 @@ local function create_constructor_for_class(class: string): ({ [unknown]: unknow
     return constructor
 end
 
-local constructor_cache = {} :: { [string]: ({ [unknown]: unknown }) -> Instance }
+local constructorCache = {} :: { [string]: ({ [unknown]: unknown }) -> Instance }
 
 -- todo: remove support for different overloads
-local function create(class_or_instance: string|Instance, properties: { [unknown]: unknown }?): unknown
-    if type(class_or_instance) ~= "string" and typeof(class_or_instance) ~= "Instance" then
-        error("bad argument #1, expected string or instance, got " .. typeof(class_or_instance), 0)
+local function create(classOrInstance: string|Instance, properties: { [unknown]: unknown }?): unknown
+    if type(classOrInstance) ~= "string" and typeof(classOrInstance) ~= "Instance" then
+        error("bad argument #1, expected string or instance, got " .. typeof(classOrInstance), 0)
     end
 
     local constructor: ({ [unknown]: unknown }) -> Instance
-    if type(class_or_instance) == "string" then
-        constructor = constructor_cache[class_or_instance]
+    if type(classOrInstance) == "string" then
+        constructor = constructorCache[classOrInstance]
         if not constructor then
-            constructor = create_constructor_for_class(class_or_instance)
-            constructor_cache[class_or_instance] = constructor
+            constructor = createConstructorForClass(classOrInstance)
+            constructorCache[classOrInstance] = constructor
         end
     else
         constructor = function(props)
-            local clone = assert(class_or_instance:Clone(), "attempt to clone a non-archivable instance")
+            local clone = assert(classOrInstance:Clone(), "attempt to clone a non-archivable instance")
             return apply(clone, props)
         end
     end

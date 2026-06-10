@@ -54,28 +54,28 @@ local NIL = nil :: any
 vide.strict = false
 
 TEST("graph", function()
-    local create_node = graph.create_node
-    local push_scope_as_child_of = graph.push_scope_as_child_of
-    local update_descendants = graph.update_descendants
-    local push_child = graph.push_child
-    local get_scope = graph.get_scope
-    local push_scope = graph.push_scope
-    local pop_scope = graph.pop_scope
-    local get_children = graph.get_children
-    local push_cleanup = graph.push_cleanup
+    local createNode = graph.createNode
+    local pushScopeAsChildOf = graph.pushScopeAsChildOf
+    local updateDescendants = graph.updateDescendants
+    local pushChild = graph.pushChild
+    local getScope = graph.getScope
+    local pushScope = graph.pushScope
+    local popScope = graph.popScope
+    local getChildren = graph.getChildren
+    local pushCleanup = graph.pushCleanup
     local destroy = graph.destroy
 
     local function node<T>(owner: Node<any>?, v: T?)
-        return create_node(owner or false, function(x) return not x end, v or false :: any)
+        return createNode(owner or false, function(x) return not x end, v or false :: any)
     end
 
     local function scope(owner: Node<any>?)
-        return create_node(owner or false, false, false)
+        return createNode(owner or false, false, false)
     end
 
     local function cleanup(fn: () -> ())
-        local node = assert(get_scope())
-        push_cleanup(node, fn)
+        local node = assert(getScope())
+        pushCleanup(node, fn)
     end
 
     do CASE "link nodes"
@@ -83,15 +83,15 @@ TEST("graph", function()
         local b = node()
         local c = node()
 
-        push_scope(c)
+        pushScope(c)
 
-        push_scope_as_child_of(a)
-        push_scope_as_child_of(b)
+        pushScopeAsChildOf(a)
+        pushScopeAsChildOf(b)
 
-        pop_scope()
+        popScope()
 
-        CHECK(get_children(a)[1] == c)
-        CHECK(get_children(b)[1] == c)
+        CHECK(getChildren(a)[1] == c)
+        CHECK(getChildren(b)[1] == c)
     end
 
     do CASE "rerun linked nodes"
@@ -103,24 +103,24 @@ TEST("graph", function()
         local count = 0
 
         local function effect(x)
-            push_scope_as_child_of(a)
-            push_scope_as_child_of(b)
+            pushScopeAsChildOf(a)
+            pushScopeAsChildOf(b)
             count += 1
             return not x
         end
 
         c.effect = effect
 
-        push_scope(c)
+        pushScope(c)
 
         effect(c.cache)
 
-        pop_scope()
+        popScope()
         
         CHECK(count == 1)
-        update_descendants(a)
+        updateDescendants(a)
         CHECK(count == 2)
-        update_descendants(b)
+        updateDescendants(b)
         CHECK(count == 3)
     end
 
@@ -135,11 +135,11 @@ TEST("graph", function()
         function c.effect(x) c_cnt += 1; return not x end
         function d.effect(x) d_cnt += 1; return not x end
 
-        push_scope(b); push_scope_as_child_of(a); pop_scope()
-        push_scope(c); push_scope_as_child_of(a); pop_scope()
-        push_scope(d); push_scope_as_child_of(b); push_scope_as_child_of(c); pop_scope()
+        pushScope(b); pushScopeAsChildOf(a); popScope()
+        pushScope(c); pushScopeAsChildOf(a); popScope()
+        pushScope(d); pushScopeAsChildOf(b); pushScopeAsChildOf(c); popScope()
 
-        update_descendants(a)
+        updateDescendants(a)
 
         CHECK(b_cnt == 1)
         CHECK(c_cnt == 1)
@@ -151,17 +151,17 @@ TEST("graph", function()
         local a, b, c = node(root), node(root), node(root)
 
         function c.effect(x)
-            push_scope_as_child_of(a)
-            push_scope_as_child_of(b)
+            pushScopeAsChildOf(a)
+            pushScopeAsChildOf(b)
             return not x
         end
 
-        push_scope(c); assert(type(c.effect) == "function" and c.effect)(NIL); pop_scope()
+        pushScope(c); assert(type(c.effect) == "function" and c.effect)(NIL); popScope()
 
-        update_descendants(a)
+        updateDescendants(a)
 
-        CHECK(#get_children(a) == 1)
-        CHECK(#get_children(b) == 1)
+        CHECK(#getChildren(a) == 1)
+        CHECK(#getChildren(b) == 1)
     end
 
     do CASE "case 1"
@@ -188,47 +188,47 @@ TEST("graph", function()
             end)
         end
 
-        do push_scope(root) 
+        do pushScope(root) 
             clean "root"
             items_updated = node(root)
-            push_scope_as_child_of(items_updated) -- should not
+            pushScopeAsChildOf(items_updated) -- should not
 
-            do push_scope(items_updated)
-                push_scope_as_child_of(items)
+            do pushScope(items_updated)
+                pushScopeAsChildOf(items)
 
-                do push_scope(root)
-                    do push_scope(scope1)
+                do pushScope(root)
+                    do pushScope(scope1)
                         clean "scope1"
                         bind1 = node(scope1)
 
-                        do push_scope(bind1)
+                        do pushScope(bind1)
                             clean "bind1"
-                            push_scope_as_child_of(selected)
-                        pop_scope() end
-                    pop_scope() end
+                            pushScopeAsChildOf(selected)
+                        popScope() end
+                    popScope() end
 
-                    do push_scope(scope2)
+                    do pushScope(scope2)
                         clean "scope2"
                         bind2 = node(scope2)
-                        do push_scope(bind2)
+                        do pushScope(bind2)
                             clean "bind2"
-                            push_scope_as_child_of(selected)
-                        pop_scope() end
-                    pop_scope() end
-                pop_scope() end
-            pop_scope() end 
-        pop_scope() end
+                            pushScopeAsChildOf(selected)
+                        popScope() end
+                    popScope() end
+                popScope() end
+            popScope() end 
+        popScope() end
         
 
         -- verify graph
 
         do
-            local c = get_children(items_updated)
+            local c = getChildren(items_updated)
             CHECK(#c == 0)
         end
     
         do
-            local c = get_children(root)
+            local c = getChildren(root)
             CHECK(#c == 0)
             -- CHECK(table.find(c, items_updated))
             -- CHECK(table.find(c, scope1 :: Node<any>))
@@ -236,27 +236,27 @@ TEST("graph", function()
         end
 
         do
-            local c = get_children(selected)
+            local c = getChildren(selected)
             CHECK(#c == 2)
             CHECK(table.find(c, bind1 :: any))
             CHECK(table.find(c, bind2 :: any))
         end
 
         do
-            local c = get_children(scope1)
+            local c = getChildren(scope1)
             CHECK(#c == 0)
             --CHECK(table.find(c, bind1))
         end
 
         do
-            local c = get_children(scope2)
+            local c = getChildren(scope2)
             CHECK(#c == 0)
             --CHECK(table.find(c, bind2))
         end
 
         -- destroy
 
-        --CHECK(table.find(get_children(root), scope1 :: Node<any>))
+        --CHECK(table.find(getChildren(root), scope1 :: Node<any>))
 
         destroy(scope1)
         CHECK(cleaned.scope1)
@@ -265,8 +265,8 @@ TEST("graph", function()
         bind1 = NIL
         bind2 = NIL
         gc()
-        CHECK(#get_children(root) == 0)
-        CHECK(#get_children(selected) == 1)
+        CHECK(#getChildren(root) == 0)
+        CHECK(#getChildren(selected) == 1)
     end
 
     do CASE "nodes garbage collection"
@@ -297,7 +297,7 @@ TEST("graph", function()
            ^
 
         depth=1
-        _, _   <- attempt to update_descendants nothing
+        _, _   <- attempt to updateDescendants nothing
            ^        
 
         ]]
@@ -306,14 +306,14 @@ TEST("graph", function()
         local a, b, c, d, e, f = node(root), node(root), node(root), node(root), node(root), node(root)
 
         function b.effect(x)
-            update_descendants(d)
+            updateDescendants(d)
             return not x
         end
 
-        push_child(a, b); push_child(a, c)
-        push_child(d, e); push_child(d, f)
+        pushChild(a, b); pushChild(a, c)
+        pushChild(d, e); pushChild(d, f)
 
-        update_descendants(a)
+        updateDescendants(a)
 
         CHECK(true)
     end
@@ -769,7 +769,7 @@ TEST("create()", wrap_root(function()
     end
 
     do CASE "nested not deferred"
-        vide.defer_nested_properties = false
+        vide.deferNestedProperties = false
 
         local t = {}
     
@@ -783,7 +783,7 @@ TEST("create()", wrap_root(function()
         CHECK(t[1] == 1)
         CHECK(t[2] == 2)
 
-        vide.defer_nested_properties = true
+        vide.deferNestedProperties = true
     end
 
     do CASE "independent"
@@ -2633,7 +2633,7 @@ TEST("read()", wrap_root(function()
         CHECK(read(src) == 1)
     end
 
-    do CASE "push_scope_as_child_of source"
+    do CASE "pushScopeAsChildOf source"
         local src = source(0)
 
         local count = 0

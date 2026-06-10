@@ -1,14 +1,14 @@
 local graph = require "./graph"
 type Node<T> = graph.Node<T>
-local create_node = graph.create_node
-local push_scope = graph.push_scope
-local pop_scope = graph.pop_scope
+local createNode = graph.createNode
+local pushScope = graph.pushScope
+local popScope = graph.popScope
 local destroy = graph.destroy
 
 local refs = {}
 
 local function root<T...>(fn: (destroy: () -> ()) -> T...): (() -> (), T...)
-    local node = create_node(false, false, false)
+    local node = createNode(false, false, false)
 
     refs[node] = true -- prevent gc of root node
 
@@ -18,11 +18,11 @@ local function root<T...>(fn: (destroy: () -> ()) -> T...): (() -> (), T...)
         destroy(node)
     end
 
-    push_scope(node)
+    pushScope(node)
 
-    local result = { xpcall(fn, debug.traceback, destroy) }
+    local result = { xpcall(fn, debug.traceback :: any, destroy) }
 
-    pop_scope()
+    popScope()
 
     if not result[1] then
         destroy()

@@ -1,12 +1,12 @@
 local graph = require "./graph"
-local create_node = graph.create_node
-local assert_stable_scope = graph.assert_stable_scope
-local evaluate_node = graph.evaluate_node
+local createNode = graph.createNode
+local assertStableScope = graph.assertStableScope
+local evaluateNode = graph.evaluateNode
 
-local function effect<T>(callback: (T) -> T, initial_value: T)
-    local node = create_node(assert_stable_scope(), callback, initial_value)
+local function effect<T>(callback: (T) -> T, initialValue: T)
+    local node = createNode(assertStableScope(), callback, initialValue)
 
-    evaluate_node(node)
+    evaluateNode(node)
 end
 
-return effect :: (<T>(callback: (T) -> T, initial_value: T) -> ()) & ((callback: () -> ()) -> ())
+return effect :: (<T>(callback: (T) -> T, initialValue: T) -> ()) & ((callback: () -> ()) -> ())
