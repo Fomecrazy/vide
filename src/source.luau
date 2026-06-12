@@ -1,4 +1,6 @@
 local graph = require "./graph"
+local registry = require "./registry"
+
 type Node<T> = graph.Node<T>
 local createSourceNode = graph.createSourceNode
 local pushScopeAsChildOf = graph.pushScopeAsChildOf
@@ -24,6 +26,8 @@ local function source<T>(initialValue: T): Source<T>
         updateDescendants(node)
         return v
     end
+
+    registry.registerVideInstance(updateSource, "source")
 
     return updateSource
 end

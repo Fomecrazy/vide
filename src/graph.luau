@@ -67,8 +67,11 @@ local function popInvalidElementScope()
     -- the error up, popping out only that element is not sufficient
     -- to combat that we clear all active element scopes
 
-    while (getScope() :: ElementNode).element do
+    local scope = getScope()
+    while scope and (scope :: ElementNode).element do
         popScope()
+
+        scope = getScope()
     end
 end
 
@@ -98,8 +101,6 @@ local function assertElementScope(): ElementNode
     local scope = getScope() :: ElementNode
 
     if not scope or not scope.element then
-        popScope()
-
         local callerName = debug.info(2, "n")
         return error(`cannot use {callerName}() outside a stable or element scope`, 0)
     end

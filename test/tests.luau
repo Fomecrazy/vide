@@ -9,8 +9,8 @@ local vide = require "../../vide"
     local root = vide.root
     local mount = vide.mount
     local create = vide.create
-    local source = vide.source
     local effect = vide.effect
+    local source = vide.source;
     local derive = vide.derive
     local switch = vide.switch
     local show = vide.show
@@ -26,6 +26,11 @@ local vide = require "../../vide"
     local changed = vide.changed
     local apply = vide.apply
     local step = vide.step
+    local memo = vide.memo
+    local map = vide.map
+    local reducer = vide.reducer
+    local ref = vide.ref
+    local is = vide.is
 local graph = require "../../vide/src/graph"
 type Node<T> = graph.Node<T>
 
@@ -584,6 +589,32 @@ TEST("derive()", wrap_root(function()
     -- end
 end))
 
+TEST("memo()", wrap_root(function()
+    do CASE "assert scope"
+        local okStable = pcall(memo, function() return false end)
+
+        local f = create "Frame" {
+            Active = pcall(memo, function() return true end)
+        }
+        
+        CHECK(okStable)
+        CHECK(not f.Active)
+    end
+end))
+
+TEST("map()", wrap_root(function()
+    do CASE "assert scope"
+        local okStable = pcall(map, function() return false end)
+
+        local f = create "Frame" {
+            Active = pcall(map, function() return true end)
+        }
+
+        CHECK(not okStable)
+        CHECK(f.Active)
+    end
+end))
+
 TEST("effect()", wrap_root(function()
     do CASE "rerun on source change"
         local a = source(1)
@@ -634,6 +665,73 @@ TEST("effect()", wrap_root(function()
 
         CHECK(count == 2)
     end
+end))
+
+TEST("ref()", wrap_root(function()
+    local hi = ref("hello").current
+    local yes = ref(1)
+
+    local updateTest = source(0)
+    effect(function()
+        local a = yes.current
+
+        updateTest(untrack(updateTest) + a)
+    end)
+
+    yes.current = 2
+
+    CHECK(updateTest() == 1)
+    CHECK(hi == "hello")
+end))
+
+TEST("reducer()", wrap_root(function()
+    local function calculator(state: number, action: { type: "+" | "-" | "*", value: number })
+        if action.type == "+" then
+            return state + action.value
+        elseif action.type == "-" then
+            return state - action.value
+        elseif action.type == "*" then
+            return state * action.value
+        end
+
+        return state
+    end
+
+    local value, dispatch = reducer(calculator, 0)
+
+    dispatch({ type = "+", value = 10 })
+    dispatch({ type = "*", value = 10})
+    dispatch({ type = "-", value = 20 })
+
+    CHECK(value() == 80)
+end))
+
+TEST("is()", wrap_root(function()
+    local sourceA = source(1)
+    local sourceB = source(1)
+
+    local memoSourceOk = false
+    local memoA = memo(function()
+        memoSourceOk = is("source")(sourceA) and is("source")(sourceB)
+
+        return 1
+    end)
+    local memoB = memo(function()
+        return 1
+    end)
+
+    local f = create "Frame" {
+        BackgroundTransparency = map(function()
+            return sourceA() + sourceB()
+        end)
+    }
+    sourceA(5)
+
+    CHECK(is("source")(sourceA) and is("source")(sourceB) and not is("memo")(sourceB))
+    CHECK(is("memo")(memoA) and is("memo")(memoB) and not is("source")(memoA))
+    CHECK(memoSourceOk)
+    
+    CHECK(f.BackgroundTransparency == 6)
 end))
 
 TEST("cleanup()", wrap_root(function()
@@ -858,6 +956,37 @@ TEST("create()", wrap_root(function()
         CHECK(t[1] == true)
         CHECK(t[2] == true)
         CHECK(t[3] == true)
+    end
+
+    do CASE "assert strict stable scope"
+        local scopes = require "../src/graph".scopes
+        local assertStableScope = require "../src/graph".assertStableScope
+
+        create "Frame" {
+            Active = pcall(assertStableScope, true),
+        }
+
+        CHECK(scopes.n == 1)
+
+        local childOk = true
+        local nestedOk = true
+        create "Frame" {
+            function()
+                childOk = pcall(assertStableScope, true)
+
+                create "Frame" {
+                    Active = function()
+                        nestedOk = pcall(assertStableScope, true)
+
+                        return nestedOk
+                    end
+                }
+            end
+        }
+
+        CHECK(scopes.n == 1)
+        CHECK(not childOk)
+        CHECK(not nestedOk)
     end
 
     do CASE "independent"

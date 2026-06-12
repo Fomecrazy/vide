@@ -20,6 +20,11 @@ local values = require "./values"
 local spring, updateSprings = require "./spring"()
 local action = require "./action"()
 local changed = require "./changed"
+local memo = require "./memo"
+local map = require "./map"
+local ref = require "./ref"
+local is = require "./is"
+local reducer = require "./reducer"
 local timeout, updateTimeouts = require "./timeout"()
 local flags = require "./flags" :: { [any]: any }
 
@@ -64,12 +69,19 @@ local vide = {
     indexes = indexes,
     values = values,
 
+    -- hooks
+    map = map,
+    memo = memo,
+    ref = ref,
+    reducer = reducer,
+
     -- util
     cleanup = cleanup,
     untrack = untrack,
     read = read,
     batch = batch,
     context = context,
+    is = is,
 
     -- animations
     spring = spring,
