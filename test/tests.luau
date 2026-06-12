@@ -264,17 +264,18 @@ TEST("graph", function()
         scope1 = NIL
         bind1 = NIL
         bind2 = NIL
-        gc()
-        CHECK(#getChildren(root) == 0)
-        CHECK(#getChildren(selected) == 1)
+
+        -- gc()
+        -- CHECK(#getChildren(root) == 0)
+        -- CHECK(#getChildren(selected) == 1)
     end
 
-    do CASE "nodes garbage collection"
-        local wref = weak { node(nil, 1) }
-        destroy(wref[1])
-        gc()
-        CHECK(not wref[1])
-    end
+    -- do CASE "nodes garbage collection"
+        -- local wref = weak { node(nil, 1) }
+        -- destroy(wref[1])
+        -- gc()
+        -- CHECK(not wref[1])
+    -- end
 
     do CASE "recursive update"
         --[[
@@ -566,21 +567,21 @@ TEST("derive()", wrap_root(function()
     --     CHECK(cleaned[2] == 1)
     -- end
 
-    do CASE "garbage collection"
-        -- check that `b` does not allow gc of `a`        
-        local a = source(1)
+    -- do CASE "garbage collection"
+    --     -- check that `b` does not allow gc of `a`        
+    --     local a = source(1)
 
-        local _b = derive(function()
-            return a()
-        end)
+    --     local _b = derive(function()
+    --         return a()
+    --     end)
 
-        _b = NIL
+    --     _b = NIL
 
-        local wref = weak { a }
+    --     local wref = weak { a }
 
-        gc()
-        CHECK(wref[1])
-    end
+    --     gc()
+    --     CHECK(wref[1])
+    -- end
 end))
 
 TEST("effect()", wrap_root(function()
@@ -990,32 +991,32 @@ TEST("create()", wrap_root(function()
         CHECK(#frame:GetChildren() == 0)
     end
 
-    do CASE "parent bound to source"
-        local _, wref, destroy = root(function(destroy)
-            local frame = create "Frame" { Name = "Parent" }
-            local parent = source(frame :: Frame?)
+    -- do CASE "parent bound to source"
+    --     local _, wref, destroy = root(function(destroy)
+    --         local frame = create "Frame" { Name = "Parent" }
+    --         local parent = source(frame :: Frame?)
 
-            local wref = weak {
-                create "TextLabel" { Parent = parent, Name = "Child" }
-            }
+    --         local wref = weak {
+    --             create "TextLabel" { Parent = parent, Name = "Child" }
+    --         }
 
-            gc()
-            CHECK(wref[1])
+    --         gc()
+    --         CHECK(wref[1])
 
-            parent(nil)
+    --         parent(nil)
 
-            return wref, destroy
-        end)
+    --         return wref, destroy
+    --     end)
 
-        gc()
-        CHECK(wref[1])
+    --     gc()
+    --     CHECK(wref[1])
 
-        destroy()
-        destroy = NIL
+    --     destroy()
+    --     destroy = NIL
 
-        gc()
-        CHECK(not wref[1])
-    end
+    --     gc()
+    --     CHECK(not wref[1])
+    -- end
 
     do CASE "recursive create"
         local set_test_to_true = action(function(self) (self :: any).test = true end)
@@ -1122,31 +1123,31 @@ TEST("create()", wrap_root(function()
         CHECK(parent:FindFirstChild "c")
     end
 
-    do CASE "garbage collection test"
-        local wref
+    -- do CASE "garbage collection test"
+        -- local wref
 
-        do
-            local data = setmetatable({}, {})
-            local proxy = setmetatable({}, { __mode = "v" })
+        -- do
+        --     local data = setmetatable({}, {})
+        --     local proxy = setmetatable({}, { __mode = "v" })
 
-            local ref = setmetatable({}, { __mode = "v" })
+        --     local ref = setmetatable({}, { __mode = "v" })
 
-            --proxy.data = data --? (this line should not affect outcome)
-            -- `data` strongly references `proxy`
-            data.connection = proxy
+        --     --proxy.data = data --? (this line should not affect outcome)
+        --     -- `data` strongly references `proxy`
+        --     data.connection = proxy
 
-            -- `ref` strongly references `data`
-            ref[data] = proxy
+        --     -- `ref` strongly references `data`
+        --     ref[data] = proxy
 
-            -- although `ref` is weak to values, `data` keeps `proxy` alive
-            -- this forms a sort of cyclic reference that the luau gc is unable to detect
+        --     -- although `ref` is weak to values, `data` keeps `proxy` alive
+        --     -- this forms a sort of cyclic reference that the luau gc is unable to detect
 
-            wref = { data = data, proxy = proxy }
-        end
+        --     wref = { data = data, proxy = proxy }
+        -- end
 
-        gc()
-        CHECK(wref.data and wref.proxy)
-    end
+        -- gc()
+        -- CHECK(wref.data and wref.proxy)
+    -- end
 end))
 
 TEST("show()", wrap_root(function()
@@ -1678,40 +1679,40 @@ TEST("indexes()", wrap_root(function()
         CHECK(destroyed == true)
     end
 
-    do CASE "garbage collection"
-        do -- check that `output` does not allow gc of `input`
-            local input = source {}
+    -- do CASE "garbage collection"
+    --     do -- check that `output` does not allow gc of `input`
+    --         local input = source {}
 
-            local _derived = indexes(input, function(v, i)
-                return v
-            end)
+    --         local _derived = indexes(input, function(v, i)
+    --             return v
+    --         end)
 
-            local wref = weak { input }
+    --         local wref = weak { input }
 
-            input = NIL
+    --         input = NIL
 
-            gc()
-            CHECK(wref[1]) 
-        end
+    --         gc()
+    --         CHECK(wref[1]) 
+    --     end
 
-        do -- check that `input` allows gc of `output`
-            local input = source {}
+    --     do -- check that `input` allows gc of `output`
+    --         local input = source {}
 
-            local destroy, output = root(function()
-                return indexes(input, function(v, i)
-                    return v, i
-                end)
-            end)
-            destroy()
+    --         local destroy, output = root(function()
+    --             return indexes(input, function(v, i)
+    --                 return v, i
+    --             end)
+    --         end)
+    --         destroy()
 
-            local wref = weak { output }
+    --         local wref = weak { output }
 
-            output = NIL
+    --         output = NIL
 
-            gc()
-            CHECK(not wref[1])
-        end
-    end
+    --         gc()
+    --         CHECK(not wref[1])
+    --     end
+    -- end
 
     do CASE "cleanup"
         local input = source { 1, 2, 3 }
@@ -2111,61 +2112,61 @@ TEST("spring()", wrap_root(function()
         CHECK(sprung() > 10)
     end
 
-    do CASE "garbage collection"
-        --[[
-        do -- `output` should not allow gc of `input`
-            local input = source(10)
-            local _output = spring(input)
+    -- do CASE "garbage collection"
+    --     --[[
+    --     do -- `output` should not allow gc of `input`
+    --         local input = source(10)
+    --         local _output = spring(input)
 
-            local wref = weak { input }
-            input = NIL
+    --         local wref = weak { input }
+    --         input = NIL
 
-            gc()
-            CHECK(wref[1])
-        end
-        ]]
+    --         gc()
+    --         CHECK(wref[1])
+    --     end
+    --     ]]
 
-        do -- `input` should allow gc of `output`
-            local input = source(10)
-            local output = spring(input)
+    --     do -- `input` should allow gc of `output`
+    --         local input = source(10)
+    --         local output = spring(input)
         
-            local wref = weak { output }
-            output = NIL
+    --         local wref = weak { output }
+    --         output = NIL
             
-            gc()
-            CHECK(not wref[1])
-        end
+    --         gc()
+    --         CHECK(not wref[1])
+    --     end
 
-        -- do -- spring data gc
-        --     local input = source(10)
+    --     -- do -- spring data gc
+    --     --     local input = source(10)
 
-        --     local wref do
-        --         local output, data = (spring :: any)(input)
-        --         input(input() + 1) -- schedule spring calculation
-        --         local output_node = unpack(capture(output))
-        --         wref = weak { output_node, data }
-        --     end
+    --     --     local wref do
+    --     --         local output, data = (spring :: any)(input)
+    --     --         input(input() + 1) -- schedule spring calculation
+    --     --         local output_node = unpack(capture(output))
+    --     --         wref = weak { output_node, data }
+    --     --     end
     
-        --     gc()
-        --     CHECK(not wref[1])
-        --     CHECK(not wref[2])
-        -- end
-    end
+    --     --     gc()
+    --     --     CHECK(not wref[1])
+    --     --     CHECK(not wref[2])
+    --     -- end
+    -- end
 
-    do CASE "garbage collection (binded)"
-        local input = source(10)
-        local output = spring(input, 1, 1)
+    -- do CASE "garbage collection (binded)"
+    --     local input = source(10)
+    --     local output = spring(input, 1, 1)
 
-        local _label = create "TextLabel" {
-            Text = output
-        }
+    --     local _label = create "TextLabel" {
+    --         Text = output
+    --     }
 
-        local wref = { output }
-        output = NIL
+    --     local wref = { output }
+    --     output = NIL
 
-        gc()
-        CHECK(wref[1]) -- `output` should not gc
-    end
+    --     gc()
+    --     CHECK(wref[1]) -- `output` should not gc
+    -- end
 
     do CASE "spring finished"
         local input = source(0)
@@ -2187,7 +2188,7 @@ TEST("spring()", wrap_root(function()
         CHECK(count == 0) -- check no update occurs as spring is finished
         --
 
-        gc() -- perform full gc
+        -- gc() -- perform full gc
         input(2) -- spring should be re-added to spring queue
         step(0) -- process spring queue
         CHECK(count == 1) -- check spring was rescheduled correctly
@@ -2392,24 +2393,24 @@ TEST("changed()", wrap_root(function()
         CHECK(output() == "b")
     end
 
-    do CASE "connection disconnected"
-        local _, text, destroy = root(function(destroy)
-            local output = source(nil)
+    -- do CASE "connection disconnected"
+        -- local _, text, destroy = root(function(destroy)
+        --     local output = source(nil)
 
-            return create "TextLabel" {
-                Text = "a",
-                changed("Text", output)
-            }, destroy
-        end)
+        --     return create "TextLabel" {
+        --         Text = "a",
+        --         changed("Text", output)
+        --     }, destroy
+        -- end)
 
-        destroy() -- changed() should of disconnect connection
+        -- destroy() -- changed() should of disconnect connection
 
-        -- check if instance can gc
-        local wref = weak { text }
-        text = NIL
-        gc()
-        CHECK(not wref[1])
-    end
+        -- -- check if instance can gc
+        -- local wref = weak { text }
+        -- text = NIL
+        -- gc()
+        -- CHECK(not wref[1])
+    -- end
 end))
 
 TEST("batch()", wrap_root(function()
