@@ -7,10 +7,11 @@ local apply = require "./apply"
 local flags = require "./flags"
 
 local createElementNode = graph.createElementNode
-local assertStableScope = graph.assertStableScope
 local pushScope = graph.pushScope
+local popScope = graph.popScope
 local popInvalidElementScope = graph.popInvalidElementScope;
 local getScope = graph.getScope;
+local scopes = graph.scopes;
 
 type Constructor = ({ [unknown]: unknown }) -> Instance
 
@@ -62,12 +63,14 @@ local function create(classOrInstance: string|Instance, properties: { [unknown]:
         error("bad argument #1, expected string or instance, got " .. typeof(classOrInstance), 0)
     end
     
+    local scope = getScope()
+
     -- if outside of scope return clean element
-    if not getScope() then
+    if not scope then
         return __create(classOrInstance, properties)
     end
 
-    local node = createElementNode(assertStableScope())
+    local node = createElementNode(scope)
 
     -- push the scope here to allow running
     -- property functions within the element scope
@@ -86,19 +89,23 @@ local function create(classOrInstance: string|Instance, properties: { [unknown]:
         
         if flags.strict then
             local ok, component = xpcall(constructorGetter :: (a: any, b: any) -> Instance, debug.traceback :: any, args[1], args[2])
-            popInvalidElementScope()
             
             if not ok then
+                popInvalidElementScope()
                 error(`component effect error stacktrace\n{component :: any}`, 0)
+            elseif scopes.n > 1 then
+                popScope()
             end
-
+            
             return component
         else
             local ok, component = pcall(constructorGetter :: (a: any, b: any) -> Instance, args[1], args[2])
-            popInvalidElementScope()
             
             if not ok then
+                popInvalidElementScope()
                 error(`component effect error:\n{component :: any}`, 0)
+            elseif scopes.n > 1 then
+                popScope()
             end
 
             return component
