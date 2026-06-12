@@ -1,11 +1,20 @@
 local typeof = game and typeof or require "../test/mock".typeof :: never
 local Instance = game and Instance or require "../test/mock".Instance :: never
 
+local graph = require "./graph"
 local defaults = require "./defaults"
 local apply = require "./apply"
 local flags = require "./flags"
 
-local function createConstructorForClass(class: string): ({ [unknown]: unknown }) -> Instance
+local createElementNode = graph.createElementNode
+local assertStableScope = graph.assertStableScope
+local pushScope = graph.pushScope
+local popInvalidElementScope = graph.popInvalidElementScope;
+local getScope = graph.getScope;
+
+type Constructor = ({ [unknown]: unknown }) -> Instance
+
+local function createConstructorForClass(class: string): Constructor
     local function constructor(properties: { [unknown]: unknown }): Instance
         local ok, instance: Instance = pcall(Instance.new, class :: any)
         if not ok then error(`invalid class name {class}`, 0) end
@@ -25,15 +34,10 @@ local function createConstructorForClass(class: string): ({ [unknown]: unknown }
     return constructor
 end
 
-local constructorCache = {} :: { [string]: ({ [unknown]: unknown }) -> Instance }
+local constructorCache = {} :: { [string]: Constructor }
 
--- todo: remove support for different overloads
-local function create(classOrInstance: string|Instance, properties: { [unknown]: unknown }?): unknown
-    if type(classOrInstance) ~= "string" and typeof(classOrInstance) ~= "Instance" then
-        error("bad argument #1, expected string or instance, got " .. typeof(classOrInstance), 0)
-    end
-
-    local constructor: ({ [unknown]: unknown }) -> Instance
+local function __create(classOrInstance: string|Instance, properties: { [unknown]: unknown }?): unknown
+    local constructor: Constructor
     if type(classOrInstance) == "string" then
         constructor = constructorCache[classOrInstance]
         if not constructor then
@@ -50,6 +54,64 @@ local function create(classOrInstance: string|Instance, properties: { [unknown]:
     return if properties
         then constructor(properties)
         else constructor
+end
+
+-- TODO: remove support for different overloads
+local function create(classOrInstance: string|Instance, properties: { [unknown]: unknown }?): unknown
+    if type(classOrInstance) ~= "string" and typeof(classOrInstance) ~= "Instance" then
+        error("bad argument #1, expected string or instance, got " .. typeof(classOrInstance), 0)
+    end
+    
+    -- if outside of scope return clean element
+    if not getScope() then
+        return __create(classOrInstance, properties)
+    end
+
+    local node = createElementNode(assertStableScope())
+
+    -- push the scope here to allow running
+    -- property functions within the element scope
+    pushScope(node)
+    
+    -- ^ this gets popped either inside the mountComponent
+    -- if an effect error occurs
+    -- OR in assertElementScope and assertStableScope in strict mode
+    -- when any property constructor errors when called
+    -- we do that because we cannot wrap the property constructors
+    -- in a pcall, leaving us with popping the scope in the function
+    -- calling the error
+    
+    local function mountComponent(constructorGetter: typeof(__create) | Constructor, ...: unknown): Instance
+        local args = table.pack(...)
+        
+        if flags.strict then
+            local ok, component = xpcall(constructorGetter :: (a: any, b: any) -> Instance, debug.traceback :: any, args[1], args[2])
+            popInvalidElementScope()
+            
+            if not ok then
+                error(`component effect error stacktrace\n{component :: any}`, 0)
+            end
+
+            return component
+        else
+            local ok, component = pcall(constructorGetter :: (a: any, b: any) -> Instance, args[1], args[2])
+            popInvalidElementScope()
+            
+            if not ok then
+                error(`component effect error:\n{component :: any}`, 0)
+            end
+
+            return component
+        end
+    end
+
+    if properties ~= nil then
+        return mountComponent(__create, classOrInstance, properties)
+    else
+        return function(props: { [unknown]: unknown })
+            return mountComponent(__create(classOrInstance) :: Constructor, props)
+        end
+    end
 end
 
 type Instances = {

@@ -19,6 +19,10 @@ export type Node<T> =  {
     [number]: Node<T> -- children
 }
 
+export type ElementNode = Node<false> & {
+    element: true;
+}
+
 local scopes = { n = 0 } :: { [number]: Node<any>, n: number } -- scopes stack
 
 -- effect function handler
@@ -52,7 +56,23 @@ local function getScope(): Node<unknown>?
     return scopes[scopes.n]
 end
 
-local function assertStableScope(): Node<unknown>
+local function popScope()
+    local n = scopes.n
+    scopes.n = n - 1
+    scopes[n] = nil
+end
+
+local function popInvalidElementScope()
+    -- because an invalid element will propagate
+    -- the error up, popping out only that element is not sufficient
+    -- to combat that we clear all active element scopes
+
+    while (getScope() :: ElementNode).element do
+        popScope()
+    end
+end
+
+local function assertStableScope(strict: boolean?): Node<unknown>
     local scope = getScope()
 
     if not scope then
@@ -60,6 +80,28 @@ local function assertStableScope(): Node<unknown>
         return error(`cannot use {callerName}() outside a stable or reactive scope`, 0)
     elseif scope.effect then
         error("cannot create a new reactive scope inside another reactive scope", 0)
+    elseif strict and (scope :: ElementNode).element then
+        -- an error here caused by a property constructor
+        -- propagates the error through all the components,
+        -- leaving all the ancestors of the invalid one in an active scope
+        
+        popInvalidElementScope()
+
+        local callerName: string = debug.info(2, "n")
+        error(`cannot use {if #callerName == 0 then "anonymous" else callerName}() inside of an element scope`, 0)
+    end
+
+    return scope
+end
+
+local function assertElementScope(): ElementNode
+    local scope = getScope() :: ElementNode
+
+    if not scope or not scope.element then
+        popScope()
+
+        local callerName = debug.info(2, "n")
+        return error(`cannot use {callerName}() outside a stable or element scope`, 0)
     end
 
     return scope
@@ -74,12 +116,6 @@ local function pushScope<T>(node: Node<T>)
     local n = scopes.n + 1
     scopes.n = n
     scopes[n] = node
-end
-
-local function popScope()
-    local n = scopes.n
-    scopes.n = n - 1
-    scopes[n] = nil
 end
 
 local function pushCleanup<T>(node: Node<T>, cleanup: () -> ())
@@ -251,8 +287,6 @@ local function updateDescendants<T>(root: SourceNode<T>)
 
         -- check if node is still owned in case destroyed after queued
         if node.owner and evaluateNode(node) then
-            -- TODO figure out why we call this considering node is supposed to be reactive
-            -- possibly derive support or something?
             queueChildrenForUpdate(node)
         end
 
@@ -295,6 +329,13 @@ local function createNode<T>(owner: false | Node<any>, effect: false | ((T) -> T
     return node
 end
 
+local function createElementNode(owner: false | Node<any>): ElementNode
+    local node = createNode(owner, false, false) :: ElementNode
+    node.element = true
+
+    return node
+end
+
 local function createSourceNode<T>(value: T): SourceNode<T>
     return { cache = value }
 end
@@ -314,9 +355,11 @@ end
 return table.freeze {
     pushScope = pushScope,
     popScope = popScope,
+    popInvalidElementScope = popInvalidElementScope,
     evaluateNode = evaluateNode,
     getScope = getScope,
     assertStableScope = assertStableScope,
+    assertElementScope = assertElementScope,
     pushCleanup = pushCleanup,
     destroy = destroy,
     flushCleanups = flushCleanups,
@@ -324,6 +367,7 @@ return table.freeze {
     updateDescendants = updateDescendants,
     pushChild = pushChild,
     createNode = createNode,
+    createElementNode = createElementNode,
     createSourceNode = createSourceNode,
     getChildren = getChildren,
     flushUpdateQueue = flushUpdateQueue,

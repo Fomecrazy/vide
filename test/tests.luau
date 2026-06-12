@@ -752,7 +752,7 @@ TEST("create()", wrap_root(function()
 
     do CASE "set nested parent"
         local frame = create "Frame" {}
-        local text = create "TextLavel" { { Parent = frame } }
+        local text = create "TextLabel" { { Parent = frame } }
         CHECK(frame:GetChildren()[1] == text)
         CHECK(text.Parent == frame)
     end
@@ -784,6 +784,79 @@ TEST("create()", wrap_root(function()
         CHECK(t[2] == 2)
 
         vide.deferNestedProperties = true
+    end
+
+    do CASE "element scope"
+        local getScope = require "../src/graph".getScope
+
+        local rootConstructorIsElement = false
+        local rootEffectIsElement = false
+
+        local inlineConstructorIsElement = false;
+        local inlineEffectIsElement = false
+
+        local function rootEffect()
+            rootConstructorIsElement = getScope().element
+            
+            return function()
+                rootEffectIsElement = getScope().element
+                return 0
+            end
+        end
+
+        create "Frame" {
+            Active = function()
+                inlineConstructorIsElement = getScope().element
+                return false
+            end,
+            Visible = (function()
+                return function()
+                    inlineEffectIsElement = getScope().element
+                    return false
+                end
+            end)(),
+            BackgroundTransparency = rootEffect(),
+        }
+
+        CHECK(rootConstructorIsElement)
+        CHECK(rootEffectIsElement)
+        CHECK(inlineConstructorIsElement)
+        CHECK(inlineEffectIsElement)
+    end
+
+    do CASE "parent is element"
+        local getScope = require "../src/graph".getScope
+        local isElement = false
+        
+        create "Frame" {
+            Parent = function()
+                isElement = getScope().element
+                
+                return nil
+            end
+        }
+        
+        CHECK(isElement)
+    end
+    
+    do CASE "children are elements"
+        local getScope = require "../src/graph".getScope
+
+        local t = {}
+
+        create "Frame" {
+            { function() table.insert(t, getScope().element) end } :: any,
+            function() table.insert(t, getScope().element) end,
+            function()
+                return function()
+                    table.insert(t, getScope().element)
+                end
+            end
+        }
+
+        CHECK(t[1] == true)
+        CHECK(t[2] == true)
+        CHECK(t[3] == true)
     end
 
     do CASE "independent"

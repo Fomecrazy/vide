@@ -1,31 +1,7 @@
 local graph = require "./graph"
 
 type Node<T> = graph.Node<T>
-
--- type function Parameters(fn)
---     if not fn:is("function") then return types.never end
-
---     local paramsType
---     local parameters = fn:parameters()
-
--- 	if parameters.head then
--- 		for _, value in parameters.head do
--- 			paramsType = if paramsType then types.unionof(paramsType, value) else value
--- 		end
--- 	end
-
--- 	if parameters.tail then
--- 		paramsType = if paramsType then types.unionof(paramsType, parameters.tail) else parameters.tail
--- 	end
-
--- 	return paramsType or types.singleton(nil)
--- end
-
--- type function IndexOfUnion(u, i)
---     if not u:is("union") or not i:is("singleton") then return types.never end
-
---     return u:components()[tonumber(i:value())]
--- end
+type ElementNode = graph.ElementNode;
 
 local createNode = graph.createNode
 local assertStableScope = graph.assertStableScope
@@ -83,7 +59,10 @@ local function updateChildrenEffect(p: {
                 currentChildrenSet = {},
                 newChildrenSet = {},
                 source = child   
-            })
+            });
+
+            -- -- make element node
+            (node :: ElementNode).element = true
     
             evaluateNode(node)
 
@@ -113,19 +92,25 @@ return {
         local node = createNode(assertStableScope(), updatePropertyEffect, {
             instance = instance,
             property = property,
-            source = source
-        })
+            source = source,
+        });
 
+        -- make element node
+        (node :: ElementNode).element = true
+        
         evaluateNode(node)
-
+        
         return node
     end,
-
+    
     parent = function(instance, parent)
         local node = createNode(assertStableScope(), updateParentEffect, {
             instance = instance,
-            source = parent
-        })
+            source = parent,
+        });
+
+        -- make element node
+        (node :: ElementNode).element = true
 
         evaluateNode(node)
         
@@ -138,7 +123,10 @@ return {
             currentChildrenSet = {},
             newChildrenSet = {},
             source = children
-        })
+        });
+
+        -- make element node
+        (node :: ElementNode).element = true
 
         evaluateNode(node)
 
