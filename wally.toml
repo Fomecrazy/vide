@@ -1,5 +1,5 @@
 [package]
-name = "Fomecrazy/vide"
+name = "fome/vide"
 description = "Fork of vide refactored to be more similar to React"
 license = "MIT"
 version = "0.1.0"
@@ -15,5 +15,6 @@ exclude = [
     ".luaurc",
 	"CHANGELOG.md",
 	"README.md",
+	"sourcemap.json",
     "todo.md"
 ]

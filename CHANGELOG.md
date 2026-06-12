@@ -17,6 +17,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `create()` overloads. Supported is now only `create(class)(props)`.
 
 --------------------------------------------------------------------------------
+# FORK CHANGELOG
+
+## [0.1.0] - 2026-06-12
+
+### Added
+
+- New `element` scope that applies to any component instance
+- `is("VideInstance")(fn)` to allow argument validation in custom hooks
+- Vide instance type registry
+- `map()` hook - element only `derive()`
+- `memo()` hook - top level only `derive()`
+- `ref()` hook - `useRef()` clone
+- `reducer()` hook - `useReducer()` clone
+
+--------------------------------------------------------------------------------
 
 ## [0.4.0] - 2026-01-17
 
