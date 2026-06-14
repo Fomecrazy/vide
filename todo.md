@@ -7,6 +7,4 @@
 - update scope types to include ElementNode type
 - remove support for different overloads in create() - remove from tests
 
-<!-- - add tests for ref -->
-<!-- - add tests for reducer -->
-<!-- - add tests for strict assertStableScope -->
+- ref values persist throughout rerenders

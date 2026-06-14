@@ -27,6 +27,7 @@ local is = require "./is"
 local reducer = require "./reducer"
 local timeout, updateTimeouts = require "./timeout"()
 local flags = require "./flags" :: { [any]: any }
+local graph = require "./graph"
 
 export type Source<T> = source.Source<T>
 export type source<T> = Source<T>
@@ -89,6 +90,9 @@ local vide = {
     -- actions
     action = action,
     changed = changed,
+
+    assertStableScope = graph.assertStableScope,
+    assertElementScope = graph.assertElementScope,
 
     -- flags
     strict = (nil :: any) :: boolean,
